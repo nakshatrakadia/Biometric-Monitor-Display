@@ -1,6 +1,7 @@
-Biometric Monitor & Display
+Biometric Monitor & Display:
 I plan to make a project that uses biometric sensors on an Arduino to measure the user's pulse and body temperature, and to display those measurements on a screen in real time
-You should comment out all portions of your portfolio that you have not completed yet, as well as any instructions:
+
+Note: Not finished
 ```HTML 
 <!--- This is an HTML comment in Markdown -->
 <!--- Anything between these symbols will not render on the published site -->
