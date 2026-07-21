@@ -79,8 +79,11 @@ Don't forget to place the link of where to buy each component inside the quotati
 | **Part** | **Note** | **Price** | **Link** |
 |:--:|:--:|:--:|:--:|
 | Super Starter Kit UNO R3 Project | What the item is used for | $35.98 | <a href="https://www.amazon.com/Arduino-A000066-ARDUINO-UNO-R3/dp/B008GRTSV6/](https://www.amazon.com/gp/product/B01D8KOZF4/ref=ox_sc_act_title_7?smid=A2WWHQ25ENKVJ1&psc=1"> Link </a> |
-| Item Name | What the item is used for | $Price | <a href="https://www.amazon.com/Arduino-A000066-ARDUINO-UNO-R3/dp/B008GRTSV6/"> Link </a> |
-| Item Name | What the item is used for | $Price | <a href="https://www.amazon.com/Arduino-A000066-ARDUINO-UNO-R3/dp/B008GRTSV6/"> Link </a> |
+| Pulse Sensor | What the item is used for | $7.99 | <a href="https://www.amazon.com/gp/product/B07V6VV8CM/ref=ox_sc_act_title_5?smid=AYZI0TO4JGBW9&psc=1"> Link </a> |
+| Heartbeat Sensor | What the item is used for | $6.49 | <a href="https://www.amazon.com/gp/product/B01HTC52P4/ref=ox_sc_act_title_4?smid=A30QSGOJR8LMXA&psc=1"> Link </a> |
+| Temperature Sensor | What the item is used for | $6.49 | <a href="https://www.amazon.com/gp/product/B0CDQMFX7S/ref=ox_sc_act_title_3?smid=A1XEC9TMFJSNSW&psc=1"> Link </a> |
+| 9V Batteries | What the item is used for | $6.46 | <a href="https://www.amazon.com/gp/product/B07RZ9PMQH/ref=ox_sc_act_title_2?smid=A2ZJDMMVPGU1QH&th=1"> Link </a> |
+| Battery Clips | What the item is used for | $3.97 | <a href="https://www.amazon.com/gp/product/B0DRZWN3BN/ref=ox_sc_act_title_1?smid=A2XLLJ8HYD6SMA&th=1"> Link </a> |
 
 # Other Resources/Examples
 One of the best parts about Github is that you can view how other people set up their own work. Here are some past BSE portfolios that are awesome examples. You can view how they set up their portfolio, and you can view their index.md files to understand how they implemented different portfolio components.
