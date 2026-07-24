@@ -55,24 +55,374 @@ For your first milestone, describe what your project is and how you plan to buil
 
 
 # Code
-Here's where you'll put your code. The syntax below places it into a block of code. Follow the guide [here]([url](https://www.markdownguide.org/extended-syntax/)) to learn how to customize it to your project needs. 
 
 ```c++
+#include <LiquidCrystal.h>
+
+LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
+
+byte heartChar[8] = {
+  0b00000,
+  0b01010,
+  0b11111,
+  0b11111,
+  0b11111,
+  0b01110,
+  0b00100,
+  0b00000
+};
+
+const int PULSE_PIN = A0;
+
+const unsigned long SAMPLE_INTERVAL_MS = 4;
+unsigned long lastSampleTime = 0;
+
+float baseline = 0;
+bool baselineInitialized = false;
+const float BASELINE_ALPHA = 0.02;
+
+float acNoiseLevel = 2.0;
+const float NOISE_ALPHA = 0.05;
+
+const float THRESHOLD_MULTIPLIER = 1.8;
+const float MIN_THRESHOLD = 12.0;
+
+bool aboveThreshold = false;
+float currentPeakValue = 0;
+unsigned long currentPeakTime = 0;
+unsigned long lastAcceptedPeakTime = 0;
+
+const unsigned long MIN_BEAT_INTERVAL_MS = 333;
+const unsigned long MAX_BEAT_INTERVAL_MS = 1500;
+
+const int INTERVAL_HISTORY_SIZE = 5;
+unsigned long intervalHistory[INTERVAL_HISTORY_SIZE];
+int intervalCount = 0;
+int intervalIndex = 0;
+
+const int REQUIRED_CONSISTENT_INTERVALS = 4;
+const float MAX_INTERVAL_DEVIATION = 0.25;
+
+int consecutiveRejects = 0;
+const int MAX_CONSECUTIVE_REJECTS = 4;
+
+const int SATURATION_LOW = 3;
+const int SATURATION_HIGH = 1020;
+
+enum PulseState {
+  NO_SIGNAL,
+  ACQUIRING,
+  VALID_PULSE
+};
+
+PulseState state = NO_SIGNAL;
+PulseState lastDisplayedState = NO_SIGNAL;
+
+bool anyActivitySeen = false;
+unsigned long lastPeakAttemptTime = 0;
+unsigned long lastValidBeatTime = 0;
+
+const unsigned long NO_SIGNAL_TIMEOUT_MS = 3000;
+const unsigned long VALID_PULSE_TIMEOUT_MS = 4000;
+
+float currentBPM = 0;
+
+int lastDisplayedBPM = -1;
+unsigned long lastLcdUpdate = 0;
+const unsigned long LCD_MIN_UPDATE_MS = 200;
+
 void setup() {
-  // put your setup code here, to run once:
-  Serial.begin(9600);
-  Serial.println("Hello World!");
+  lcd.begin(16, 2);
+  lcd.createChar(0, heartChar);
+  showNoHeartbeat();
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
+  unsigned long now = millis();
 
+  if (now - lastSampleTime >= SAMPLE_INTERVAL_MS) {
+    lastSampleTime = now;
+    processSample(now);
+  }
+
+  updateStateTimeouts(now);
+  updateDisplay(now);
+}
+
+void processSample(unsigned long now) {
+  int raw = analogRead(PULSE_PIN);
+
+  if (raw <= SATURATION_LOW || raw >= SATURATION_HIGH) {
+    resetDetector();
+    return;
+  }
+
+  if (!baselineInitialized) {
+    baseline = raw;
+    baselineInitialized = true;
+  } else {
+    baseline += BASELINE_ALPHA * ((float)raw - baseline);
+  }
+
+  float ac = (float)raw - baseline;
+
+  if (!aboveThreshold) {
+    acNoiseLevel += NOISE_ALPHA * (fabs(ac) - acNoiseLevel);
+
+    if (acNoiseLevel < 1.0) {
+      acNoiseLevel = 1.0;
+    }
+  }
+
+  float threshold = acNoiseLevel * THRESHOLD_MULTIPLIER;
+
+  if (threshold < MIN_THRESHOLD) {
+    threshold = MIN_THRESHOLD;
+  }
+
+  bool peakDetected = false;
+
+  if (!aboveThreshold) {
+    if (ac > threshold &&
+        now - lastAcceptedPeakTime > MIN_BEAT_INTERVAL_MS) {
+
+      aboveThreshold = true;
+      currentPeakValue = ac;
+      currentPeakTime = now;
+      anyActivitySeen = true;
+      lastPeakAttemptTime = now;
+    }
+  } else {
+    if (ac > currentPeakValue) {
+      currentPeakValue = ac;
+      currentPeakTime = now;
+    }
+
+    if (ac < threshold * 0.5) {
+      aboveThreshold = false;
+      peakDetected = true;
+    }
+  }
+
+  if (!peakDetected) {
+    return;
+  }
+
+  if (lastAcceptedPeakTime == 0) {
+    lastAcceptedPeakTime = currentPeakTime;
+    state = ACQUIRING;
+    return;
+  }
+
+  unsigned long interval =
+      currentPeakTime - lastAcceptedPeakTime;
+
+  if (interval < MIN_BEAT_INTERVAL_MS ||
+      interval > MAX_BEAT_INTERVAL_MS) {
+
+    registerReject();
+    return;
+  }
+
+  if (intervalCount >= 2 &&
+      intervalDeviatesTooMuch(interval)) {
+
+    registerReject();
+    return;
+  }
+
+  intervalHistory[intervalIndex] = interval;
+  intervalIndex =
+      (intervalIndex + 1) % INTERVAL_HISTORY_SIZE;
+
+  if (intervalCount < INTERVAL_HISTORY_SIZE) {
+    intervalCount++;
+  }
+
+  consecutiveRejects = 0;
+  lastAcceptedPeakTime = currentPeakTime;
+  lastValidBeatTime = now;
+
+  if (intervalCount >= REQUIRED_CONSISTENT_INTERVALS) {
+    unsigned long median = medianInterval();
+    currentBPM = 60000.0 / (float)median;
+    state = VALID_PULSE;
+  } else {
+    state = ACQUIRING;
+  }
+}
+
+bool intervalDeviatesTooMuch(unsigned long interval) {
+  unsigned long median = medianInterval();
+
+  if (median == 0) {
+    return false;
+  }
+
+  float deviation =
+      fabs((float)interval - (float)median) /
+      (float)median;
+
+  return deviation > MAX_INTERVAL_DEVIATION;
+}
+
+unsigned long medianInterval() {
+  unsigned long sorted[INTERVAL_HISTORY_SIZE];
+
+  for (int i = 0; i < intervalCount; i++) {
+    sorted[i] = intervalHistory[i];
+  }
+
+  for (int i = 1; i < intervalCount; i++) {
+    unsigned long value = sorted[i];
+    int j = i - 1;
+
+    while (j >= 0 && sorted[j] > value) {
+      sorted[j + 1] = sorted[j];
+      j--;
+    }
+
+    sorted[j + 1] = value;
+  }
+
+  return sorted[intervalCount / 2];
+}
+
+void registerReject() {
+  consecutiveRejects++;
+
+  if (consecutiveRejects >= MAX_CONSECUTIVE_REJECTS) {
+    intervalCount = 0;
+    intervalIndex = 0;
+    consecutiveRejects = 0;
+    lastAcceptedPeakTime = 0;
+    currentBPM = 0;
+    state = ACQUIRING;
+  }
+}
+
+void resetDetector() {
+  intervalCount = 0;
+  intervalIndex = 0;
+  consecutiveRejects = 0;
+
+  aboveThreshold = false;
+  currentBPM = 0;
+  lastAcceptedPeakTime = 0;
+
+  baselineInitialized = false;
+  anyActivitySeen = false;
+
+  state = NO_SIGNAL;
+}
+
+void updateStateTimeouts(unsigned long now) {
+  if (state == VALID_PULSE &&
+      now - lastValidBeatTime >
+          VALID_PULSE_TIMEOUT_MS) {
+
+    intervalCount = 0;
+    intervalIndex = 0;
+    consecutiveRejects = 0;
+    currentBPM = 0;
+    state = ACQUIRING;
+  }
+
+  if (!anyActivitySeen ||
+      now - lastPeakAttemptTime >
+          NO_SIGNAL_TIMEOUT_MS) {
+
+    if (state != NO_SIGNAL) {
+      intervalCount = 0;
+      intervalIndex = 0;
+      consecutiveRejects = 0;
+      currentBPM = 0;
+      state = NO_SIGNAL;
+    }
+  }
+}
+
+void updateDisplay(unsigned long now) {
+  if (now - lastLcdUpdate < LCD_MIN_UPDATE_MS) {
+    return;
+  }
+
+  if (state == NO_SIGNAL) {
+    if (lastDisplayedState != NO_SIGNAL) {
+      showNoHeartbeat();
+      lastDisplayedState = NO_SIGNAL;
+      lastDisplayedBPM = -1;
+    }
+  } else if (state == ACQUIRING) {
+    if (lastDisplayedState != ACQUIRING) {
+      showAcquiring();
+      lastDisplayedState = ACQUIRING;
+      lastDisplayedBPM = -1;
+    }
+  } else {
+    int bpm = (int)round(currentBPM);
+
+    if (lastDisplayedState != VALID_PULSE ||
+        bpm != lastDisplayedBPM) {
+
+      showValidPulse(bpm);
+      lastDisplayedState = VALID_PULSE;
+      lastDisplayedBPM = bpm;
+    }
+  }
+
+  lastLcdUpdate = now;
+}
+
+void writeLine(int row, const char* text) {
+  lcd.setCursor(0, row);
+
+  char buffer[17];
+  int i = 0;
+
+  while (text[i] != '\0' && i < 16) {
+    buffer[i] = text[i];
+    i++;
+  }
+
+  while (i < 16) {
+    buffer[i] = ' ';
+    i++;
+  }
+
+  buffer[16] = '\0';
+  lcd.print(buffer);
+}
+
+void showNoHeartbeat() {
+  writeLine(0, "No heartbeat");
+  writeLine(1, "Place finger");
+}
+
+void showAcquiring() {
+  writeLine(0, "Reading pulse");
+  writeLine(1, "Keep still...");
+}
+
+void showValidPulse(int bpm) {
+  lcd.setCursor(0, 0);
+  lcd.write(byte(0));
+  lcd.print(" HeartBeat!    ");
+
+  char secondLine[17];
+  snprintf(
+      secondLine,
+      sizeof(secondLine),
+      "BPM: %-11d",
+      bpm
+  );
+
+  writeLine(1, secondLine);
 }
 ```
 
 # Bill of Materials
-Here's where you'll list the parts in your project. To add more rows, just copy and paste the example rows below.
-Don't forget to place the link of where to buy each component inside the quotation marks in the corresponding row after href =. Follow the guide [here]([url](https://www.markdownguide.org/extended-syntax/)) to learn how to customize this to your project needs. 
+
 
 | **Part** | **Note** | **Price** | **Link** |
 |:--:|:--:|:--:|:--:|
