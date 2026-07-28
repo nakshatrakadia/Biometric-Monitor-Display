@@ -39,11 +39,13 @@ For your second milestone, explain what you've worked on since your previous mil
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/1PXAsAyX8vo?si=GI4OxZExRfveXz39" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-For your first milestone, describe what your project is and how you plan to build it. You can include:
-- An explanation about the different components of your project and how they will all integrate together
-- Technical progress you've made so far
-- Challenges you're facing and solving in your future milestones
-- What your plan is to complete your project
+My project is an Arduino-based device that measures the user’s pulse and displays the heart rate on an LCD screen. The main components of the project are the Arduino Uno, the pulse sensor, the LCD1602 screen, jumper wires, and a breadboard. The pulse sensor detects the blood flow from the user’s fingertip and displays the calculated beats per minute (BPM) on the screen using the Arduino.
+
+The main progress that has been made includes assembling the circuit with the LCD screen in 4-bit mode, uploading the program to the Arduino, and displaying messages on the screen asking the user to place their finger on the sensor and messages that display the BPM of their heart rate. These messages are also displayed when the Arduino is performing signal filtering to find the BPM of the user.
+
+One of the major challenges for the project was preventing the sensor from detecting random signals when there was no finger on the sensor. The BPM readings would also change if I moved my finger. Through these challenges, I learnt about signal filtering and how to properly create a program for a pulse sensor to detect BPM accurately. In addition, the LCD screen was found to be slightly dim. This is a hardware issue because the contrast of the screen can only be adjusted with the hardware of the LCD screen, not the Arduino code.
+
+The next goal for my project will be to further test and improve the accuracy of the BPM measurements from the sensor. Another goal will be to replace the current LCD screen with an I2C screen that takes up less pins on the Arduino. A I2C LCD module may also provide a clearer or brighter display, although brightness will depend on the backlight of the specific module. I also plan to organize and secure the wiring and eventually create an enclosure for the completed biometric monitor.
 
 # Schematics 
 
