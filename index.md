@@ -49,10 +49,7 @@ The next goal for my project will be to further test and improve the accuracy of
 
 # Schematics 
 
-<img width="1310" height="848" alt="Screenshot 2026-07-22 083251" src="https://github.com/user-attachments/assets/624d70d8-8cd0-460f-aa04-744e6845cd13" />
-
-
-
+<img width="1628" height="993" alt="Schematic" src="https://github.com/user-attachments/assets/0198a1eb-1c7d-486f-b1a5-75f4e984e180" />
 
 # Code
 
