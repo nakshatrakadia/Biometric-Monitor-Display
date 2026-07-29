@@ -57,12 +57,8 @@ The next goal for my project will be to further test and improve the accuracy of
 # Code
 
 
-<details class="code-dropdown">
-  <summary>View Full Arduino Code</summary>
-
-  <div class="code-window">
-    <pre><code>
-#include <Wire.h>
+<div class="code-window">
+  <pre><code>#include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 
 LiquidCrystal_I2C lcd(0x27, 16, 2); // change to 0x3F if screen is blank
@@ -274,9 +270,8 @@ void updateDisplay(unsigned long now) {
     printLine(1, "Status: Stable");
   }
 }
-    </code></pre>
-  </div>
-</details>
+  </code></pre>
+</div>
 
 
 # Bill of Materials
