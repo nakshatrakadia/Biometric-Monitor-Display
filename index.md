@@ -306,7 +306,7 @@ void updateDisplay(unsigned long now) {
     printLine(1, "Status: Stable");
   }
 }
-  </code></pre>
+</code></pre>
 </div>
 
 
