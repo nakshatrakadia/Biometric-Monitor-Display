@@ -75,27 +75,6 @@ The next goal for my project will be to further test and improve the accuracy of
     font-size: 14px;
     line-height: 1.5;
   "><code>/*
-  Heart Rate Monitor with AUTO-CALIBRATING threshold
-  ----------------------------------------------------
-  Hardware:
-    - Pulse Sensor  -&gt; Signal pin to A0, + to 5V, - to GND
-    - I2C LCD (16x2)-&gt; SDA to A4, SCL to A5, VCC to 5V, GND to GND
-
-  Library needed:
-    - LiquidCrystal_I2C
-
-  Fixes in this version:
-    - LCD lines are now always padded to exactly 16 characters,
-      so leftover characters from a previous longer message can't
-      "stick" on screen (this was causing a stray "d" to appear).
-    - Beat intervals that are wildly different from the recent
-      average (e.g. roughly double or half) are now rejected as
-      noise/double-triggers instead of being averaged in, which
-      was causing the BPM to jump between two values like 74/141.
-    - Hysteresis (two thresholds) added to reduce false re-triggers
-      from signal noise near the threshold line.
-*/
-
 #include &lt;Wire.h&gt;
 #include &lt;LiquidCrystal_I2C.h&gt;
 
