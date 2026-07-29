@@ -57,367 +57,239 @@ The next goal for my project will be to further test and improve the accuracy of
 # Code
 
 ```c++
-#include <LiquidCrystal.h>
+/*
+  Heart Rate Monitor with AUTO-CALIBRATING threshold
+  ----------------------------------------------------
+  Hardware:
+    - Pulse Sensor  -> Signal pin to A0, + to 5V, - to GND
+    - I2C LCD (16x2)-> SDA to A4, SCL to A5, VCC to 5V, GND to GND
 
-LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
+  Library needed:
+    - LiquidCrystal_I2C
 
-byte heartChar[8] = {
-  0b00000,
-  0b01010,
-  0b11111,
-  0b11111,
-  0b11111,
-  0b01110,
-  0b00100,
-  0b00000
-};
+  Fixes in this version:
+    - LCD lines are now always padded to exactly 16 characters,
+      so leftover characters from a previous longer message can't
+      "stick" on screen (this was causing a stray "d" to appear).
+    - Beat intervals that are wildly different from the recent
+      average (e.g. roughly double or half) are now rejected as
+      noise/double-triggers instead of being averaged in, which
+      was causing the BPM to jump between two values like 74/141.
+    - Hysteresis (two thresholds) added to reduce false re-triggers
+      from signal noise near the threshold line.
+*/
+
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+LiquidCrystal_I2C lcd(0x27, 16, 2); // change to 0x3F if screen is blank
 
 const int PULSE_PIN = A0;
 
-const unsigned long SAMPLE_INTERVAL_MS = 4;
-unsigned long lastSampleTime = 0;
+// ---- Dynamic threshold state ----
+int signalMin = 1023;
+int signalMax = 0;
+int thresholdHigh = 512; // must rise above this to count as a beat
+int thresholdLow = 480;  // must fall below this before it can trigger again
 
-float baseline = 0;
-bool baselineInitialized = false;
-const float BASELINE_ALPHA = 0.02;
+// Where between min/max to place the two thresholds (0.0 - 1.0)
+const float THRESH_HIGH_RATIO = 0.55;
+const float THRESH_LOW_RATIO = 0.45;
 
-float acNoiseLevel = 2.0;
-const float NOISE_ALPHA = 0.05;
+// ---- Calibration ----
+const unsigned long CALIBRATION_TIME = 4000;
+unsigned long calibrationStart = 0;
+bool calibrated = false;
 
-const float THRESHOLD_MULTIPLIER = 1.8;
-const float MIN_THRESHOLD = 12.0;
-
+// ---- Beat detection ----
 bool aboveThreshold = false;
-float currentPeakValue = 0;
-unsigned long currentPeakTime = 0;
-unsigned long lastAcceptedPeakTime = 0;
+unsigned long lastBeatTime = 0;
+const unsigned long REFRACTORY_PERIOD = 350; // ms, max ~170bpm
 
-const unsigned long MIN_BEAT_INTERVAL_MS = 333;
-const unsigned long MAX_BEAT_INTERVAL_MS = 1500;
+// ---- Averaging buffer ----
+const int BUFFER_SIZE = 8;
+unsigned long intervalBuffer[BUFFER_SIZE];
+int bufferIndex = 0;
+int bufferCount = 0;
+unsigned long runningAvgInterval = 0; // ms, used for outlier rejection
 
-const int INTERVAL_HISTORY_SIZE = 5;
-unsigned long intervalHistory[INTERVAL_HISTORY_SIZE];
-int intervalCount = 0;
-int intervalIndex = 0;
+// ---- Display timing ----
+unsigned long lastDisplayUpdate = 0;
+const unsigned long DISPLAY_INTERVAL = 1000;
 
-const int REQUIRED_CONSISTENT_INTERVALS = 4;
-const float MAX_INTERVAL_DEVIATION = 0.25;
+// ---- Signal-lost detection ----
+unsigned long lastSignalTime = 0;
+const unsigned long SIGNAL_TIMEOUT = 3000;
 
-int consecutiveRejects = 0;
-const int MAX_CONSECUTIVE_REJECTS = 4;
-
-const int SATURATION_LOW = 3;
-const int SATURATION_HIGH = 1020;
-
-enum PulseState {
-  NO_SIGNAL,
-  ACQUIRING,
-  VALID_PULSE
-};
-
-PulseState state = NO_SIGNAL;
-PulseState lastDisplayedState = NO_SIGNAL;
-
-bool anyActivitySeen = false;
-unsigned long lastPeakAttemptTime = 0;
-unsigned long lastValidBeatTime = 0;
-
-const unsigned long NO_SIGNAL_TIMEOUT_MS = 3000;
-const unsigned long VALID_PULSE_TIMEOUT_MS = 4000;
-
-float currentBPM = 0;
-
-int lastDisplayedBPM = -1;
-unsigned long lastLcdUpdate = 0;
-const unsigned long LCD_MIN_UPDATE_MS = 200;
+// ---- Slow ongoing recalibration ----
+unsigned long lastRangeReset = 0;
+const unsigned long RANGE_RESET_INTERVAL = 8000;
 
 void setup() {
-  lcd.begin(16, 2);
-  lcd.createChar(0, heartChar);
-  showNoHeartbeat();
+  Serial.begin(9600);
+
+  lcd.init();
+  lcd.backlight();
+  printLine(0, "Calibrating...");
+  printLine(1, "Keep finger on");
+
+  calibrationStart = millis();
+  lastRangeReset = millis();
+  lastSignalTime = millis();
 }
 
 void loop() {
+  int sensorValue = analogRead(PULSE_PIN);
   unsigned long now = millis();
 
-  if (now - lastSampleTime >= SAMPLE_INTERVAL_MS) {
-    lastSampleTime = now;
-    processSample(now);
+  if (sensorValue < signalMin) signalMin = sensorValue;
+  if (sensorValue > signalMax) signalMax = sensorValue;
+
+  if (!calibrated) {
+    if (now - calibrationStart >= CALIBRATION_TIME) {
+      finishCalibration();
+    } else {
+      return;
+    }
   }
 
-  updateStateTimeouts(now);
-  updateDisplay(now);
+  if (now - lastRangeReset >= RANGE_RESET_INTERVAL) {
+    if ((signalMax - signalMin) > 20) {
+      updateThresholds();
+    }
+    signalMin = sensorValue;
+    signalMax = sensorValue;
+    lastRangeReset = now;
+  }
+
+  // ---- Beat detection with hysteresis ----
+  if (sensorValue > thresholdHigh && !aboveThreshold) {
+    if (now - lastBeatTime > REFRACTORY_PERIOD) {
+      unsigned long interval = now - lastBeatTime;
+
+      if (lastBeatTime != 0 && interval > 0) {
+        handleNewInterval(interval);
+      }
+
+      lastBeatTime = now;
+      lastSignalTime = now;
+    }
+    aboveThreshold = true;
+  } else if (sensorValue < thresholdLow) {
+    aboveThreshold = false;
+  }
+
+  if (now - lastDisplayUpdate >= DISPLAY_INTERVAL) {
+    lastDisplayUpdate = now;
+    updateDisplay(now);
+  }
+
+  Serial.print("Raw:");
+  Serial.print(sensorValue);
+  Serial.print(" Hi:");
+  Serial.print(thresholdHigh);
+  Serial.print(" Lo:");
+  Serial.println(thresholdLow);
 }
 
-void processSample(unsigned long now) {
-  int raw = analogRead(PULSE_PIN);
+void updateThresholds() {
+  thresholdHigh = signalMin + (signalMax - signalMin) * THRESH_HIGH_RATIO;
+  thresholdLow = signalMin + (signalMax - signalMin) * THRESH_LOW_RATIO;
+}
 
-  if (raw <= SATURATION_LOW || raw >= SATURATION_HIGH) {
-    resetDetector();
+void finishCalibration() {
+  if (signalMax - signalMin < 10) {
+    lcd.clear();
+    printLine(0, "No signal seen");
+    printLine(1, "Check finger/wire");
+    delay(2000);
+    signalMin = 1023;
+    signalMax = 0;
+    calibrationStart = millis();
+    printLine(0, "Calibrating...");
+    printLine(1, "Keep finger on");
     return;
   }
 
-  if (!baselineInitialized) {
-    baseline = raw;
-    baselineInitialized = true;
-  } else {
-    baseline += BASELINE_ALPHA * ((float)raw - baseline);
-  }
+  updateThresholds();
+  calibrated = true;
+  lastRangeReset = millis();
+  lcd.clear();
+}
 
-  float ac = (float)raw - baseline;
-
-  if (!aboveThreshold) {
-    acNoiseLevel += NOISE_ALPHA * (fabs(ac) - acNoiseLevel);
-
-    if (acNoiseLevel < 1.0) {
-      acNoiseLevel = 1.0;
-    }
-  }
-
-  float threshold = acNoiseLevel * THRESHOLD_MULTIPLIER;
-
-  if (threshold < MIN_THRESHOLD) {
-    threshold = MIN_THRESHOLD;
-  }
-
-  bool peakDetected = false;
-
-  if (!aboveThreshold) {
-    if (ac > threshold &&
-        now - lastAcceptedPeakTime > MIN_BEAT_INTERVAL_MS) {
-
-      aboveThreshold = true;
-      currentPeakValue = ac;
-      currentPeakTime = now;
-      anyActivitySeen = true;
-      lastPeakAttemptTime = now;
-    }
-  } else {
-    if (ac > currentPeakValue) {
-      currentPeakValue = ac;
-      currentPeakTime = now;
-    }
-
-    if (ac < threshold * 0.5) {
-      aboveThreshold = false;
-      peakDetected = true;
-    }
-  }
-
-  if (!peakDetected) {
+// Reject beat intervals that are wildly different from the recent
+// average (likely a missed beat or a noise double-trigger) instead
+// of letting them corrupt the displayed BPM.
+void handleNewInterval(unsigned long interval) {
+  if (bufferCount == 0) {
+    // First interval - accept it to get things started
+    addInterval(interval);
     return;
   }
 
-  if (lastAcceptedPeakTime == 0) {
-    lastAcceptedPeakTime = currentPeakTime;
-    state = ACQUIRING;
+  // Reject if less than 60% or more than 165% of current average
+  // (catches roughly-double or roughly-half glitches)
+  if (interval < runningAvgInterval * 0.6 || interval > runningAvgInterval * 1.65) {
+    Serial.println("Rejected outlier interval");
     return;
   }
 
-  unsigned long interval =
-      currentPeakTime - lastAcceptedPeakTime;
-
-  if (interval < MIN_BEAT_INTERVAL_MS ||
-      interval > MAX_BEAT_INTERVAL_MS) {
-
-    registerReject();
-    return;
-  }
-
-  if (intervalCount >= 2 &&
-      intervalDeviatesTooMuch(interval)) {
-
-    registerReject();
-    return;
-  }
-
-  intervalHistory[intervalIndex] = interval;
-  intervalIndex =
-      (intervalIndex + 1) % INTERVAL_HISTORY_SIZE;
-
-  if (intervalCount < INTERVAL_HISTORY_SIZE) {
-    intervalCount++;
-  }
-
-  consecutiveRejects = 0;
-  lastAcceptedPeakTime = currentPeakTime;
-  lastValidBeatTime = now;
-
-  if (intervalCount >= REQUIRED_CONSISTENT_INTERVALS) {
-    unsigned long median = medianInterval();
-    currentBPM = 60000.0 / (float)median;
-    state = VALID_PULSE;
-  } else {
-    state = ACQUIRING;
-  }
+  addInterval(interval);
 }
 
-bool intervalDeviatesTooMuch(unsigned long interval) {
-  unsigned long median = medianInterval();
+void addInterval(unsigned long interval) {
+  intervalBuffer[bufferIndex] = interval;
+  bufferIndex = (bufferIndex + 1) % BUFFER_SIZE;
+  if (bufferCount < BUFFER_SIZE) bufferCount++;
 
-  if (median == 0) {
-    return false;
-  }
-
-  float deviation =
-      fabs((float)interval - (float)median) /
-      (float)median;
-
-  return deviation > MAX_INTERVAL_DEVIATION;
+  unsigned long sum = 0;
+  for (int i = 0; i < bufferCount; i++) sum += intervalBuffer[i];
+  runningAvgInterval = sum / bufferCount;
 }
 
-unsigned long medianInterval() {
-  unsigned long sorted[INTERVAL_HISTORY_SIZE];
-
-  for (int i = 0; i < intervalCount; i++) {
-    sorted[i] = intervalHistory[i];
-  }
-
-  for (int i = 1; i < intervalCount; i++) {
-    unsigned long value = sorted[i];
-    int j = i - 1;
-
-    while (j >= 0 && sorted[j] > value) {
-      sorted[j + 1] = sorted[j];
-      j--;
-    }
-
-    sorted[j + 1] = value;
-  }
-
-  return sorted[intervalCount / 2];
+int getAverageBPM() {
+  if (bufferCount == 0 || runningAvgInterval == 0) return 0;
+  return (int)(60000UL / runningAvgInterval);
 }
 
-void registerReject() {
-  consecutiveRejects++;
-
-  if (consecutiveRejects >= MAX_CONSECUTIVE_REJECTS) {
-    intervalCount = 0;
-    intervalIndex = 0;
-    consecutiveRejects = 0;
-    lastAcceptedPeakTime = 0;
-    currentBPM = 0;
-    state = ACQUIRING;
+// Prints text to a given LCD row, padded with spaces to fill
+// the full 16 characters so no leftover text from a previous
+// (longer) message can remain on screen.
+void printLine(int row, String text) {
+  while (text.length() < 16) {
+    text += " ";
   }
-}
-
-void resetDetector() {
-  intervalCount = 0;
-  intervalIndex = 0;
-  consecutiveRejects = 0;
-
-  aboveThreshold = false;
-  currentBPM = 0;
-  lastAcceptedPeakTime = 0;
-
-  baselineInitialized = false;
-  anyActivitySeen = false;
-
-  state = NO_SIGNAL;
-}
-
-void updateStateTimeouts(unsigned long now) {
-  if (state == VALID_PULSE &&
-      now - lastValidBeatTime >
-          VALID_PULSE_TIMEOUT_MS) {
-
-    intervalCount = 0;
-    intervalIndex = 0;
-    consecutiveRejects = 0;
-    currentBPM = 0;
-    state = ACQUIRING;
+  if (text.length() > 16) {
+    text = text.substring(0, 16);
   }
-
-  if (!anyActivitySeen ||
-      now - lastPeakAttemptTime >
-          NO_SIGNAL_TIMEOUT_MS) {
-
-    if (state != NO_SIGNAL) {
-      intervalCount = 0;
-      intervalIndex = 0;
-      consecutiveRejects = 0;
-      currentBPM = 0;
-      state = NO_SIGNAL;
-    }
-  }
+  lcd.setCursor(0, row);
+  lcd.print(text);
 }
 
 void updateDisplay(unsigned long now) {
-  if (now - lastLcdUpdate < LCD_MIN_UPDATE_MS) {
+  if (now - lastSignalTime > SIGNAL_TIMEOUT) {
+    printLine(0, "No pulse found");
+    printLine(1, "Place finger...");
+    bufferCount = 0;
+    bufferIndex = 0;
+    lastBeatTime = 0;
+    runningAvgInterval = 0;
     return;
   }
 
-  if (state == NO_SIGNAL) {
-    if (lastDisplayedState != NO_SIGNAL) {
-      showNoHeartbeat();
-      lastDisplayedState = NO_SIGNAL;
-      lastDisplayedBPM = -1;
-    }
-  } else if (state == ACQUIRING) {
-    if (lastDisplayedState != ACQUIRING) {
-      showAcquiring();
-      lastDisplayedState = ACQUIRING;
-      lastDisplayedBPM = -1;
-    }
+  int bpm = getAverageBPM();
+
+  if (bpm > 0) {
+    printLine(0, "BPM: " + String(bpm));
   } else {
-    int bpm = (int)round(currentBPM);
-
-    if (lastDisplayedState != VALID_PULSE ||
-        bpm != lastDisplayedBPM) {
-
-      showValidPulse(bpm);
-      lastDisplayedState = VALID_PULSE;
-      lastDisplayedBPM = bpm;
-    }
+    printLine(0, "BPM: --");
   }
 
-  lastLcdUpdate = now;
-}
-
-void writeLine(int row, const char* text) {
-  lcd.setCursor(0, row);
-
-  char buffer[17];
-  int i = 0;
-
-  while (text[i] != '\0' && i < 16) {
-    buffer[i] = text[i];
-    i++;
+  if (bufferCount < BUFFER_SIZE) {
+    printLine(1, "Calibrating...");
+  } else {
+    printLine(1, "Status: Stable");
   }
-
-  while (i < 16) {
-    buffer[i] = ' ';
-    i++;
-  }
-
-  buffer[16] = '\0';
-  lcd.print(buffer);
-}
-
-void showNoHeartbeat() {
-  writeLine(0, "No heartbeat");
-  writeLine(1, "Place finger");
-}
-
-void showAcquiring() {
-  writeLine(0, "Reading pulse");
-  writeLine(1, "Keep still...");
-}
-
-void showValidPulse(int bpm) {
-  lcd.setCursor(0, 0);
-  lcd.write(byte(0));
-  lcd.print(" HeartBeat!    ");
-
-  char secondLine[17];
-  snprintf(
-      secondLine,
-      sizeof(secondLine),
-      "BPM: %-11d",
-      bpm
-  );
-
-  writeLine(1, secondLine);
 }
 ```
 
