@@ -57,8 +57,21 @@ The next goal for my project will be to further test and improve the accuracy of
 # Code
 
 
-<div style="height: 350px; overflow-y: scroll; overflow-x: auto; background-color: #1e1e1e; color: white; padding: 15px; border-radius: 8px;">
-  <pre style="margin: 0; white-space: pre;"><code>
+<div style="
+  height: 350px;
+  overflow-y: scroll;
+  overflow-x: hidden;
+  background-color: #1e1e1e;
+  color: white;
+  padding: 15px;
+  border-radius: 8px;
+">
+  <pre style="
+    margin: 0;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    word-break: break-word;
+  "><code>
 /*
   Heart Rate Monitor with AUTO-CALIBRATING threshold
   ----------------------------------------------------
