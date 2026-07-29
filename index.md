@@ -74,8 +74,7 @@ The next goal for my project will be to further test and improve the accuracy of
     font-family: Consolas, monospace;
     font-size: 14px;
     line-height: 1.5;
-  "><code>/*
-#include &lt;Wire.h&gt;
+  "><code>#include &lt;Wire.h&gt;
 #include &lt;LiquidCrystal_I2C.h&gt;
 
 LiquidCrystal_I2C lcd(0x27, 16, 2); // change to 0x3F if screen is blank
