@@ -25,15 +25,17 @@ For your final milestone, explain the outcome of your project. Key details to in
 
 # Second Milestone
 
-**Don't forget to replace the text below with the embedding for your milestone video. Go to Youtube, click Share -> Embed, and copy and paste the code to replace what's below.**
-
 <iframe width="560" height="315" src="https://www.youtube.com/embed/y3VAmNlER5Y" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
 
-For your second milestone, explain what you've worked on since your previous milestone. You can highlight:
-- Technical details of what you've accomplished and how they contribute to the final goal
-- What has been surprising about the project so far
-- Previous challenges you faced that you overcame
-- What needs to be completed before your final milestone 
+For my second milestone, I focused on making the biometric heart-rate monitor more compact and organized. I replaced the original LCD with an I2C LCD, which reduced the number of wires needed and made the circuit much simpler. I also removed the breadboard and reorganized the wiring inside the project.
+
+I created a cardboard enclosure to hold and protect the components. I cut openings in the box for the LCD display, the Arduino USB port, and the barrel jack so the project can still be programmed and powered without removing it from the enclosure.
+
+I also updated the Arduino code to make the heart-rate readings more stable and reduce random BPM fluctuations. The program now does a better job of detecting a consistent pulse before displaying a BPM value.
+
+One challenge was fitting all of the components neatly inside the enclosure while keeping the ports accessible. This helped me learn more about planning the physical layout instead of focusing only on the circuit and code.
+
+For my final milestone, I hope to replace the cardboard enclosure with a wooden frame or enclosure to make the final project stronger and more professional-looking.
 
 # First Milestone
 
