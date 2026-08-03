@@ -25,7 +25,7 @@ For your final milestone, explain the outcome of your project. Key details to in
 
 # Second Milestone
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/y3VAmNlER5Y" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+<iframe width="661" height="1175" src="https://www.youtube.com/embed/wc7h7alKCnU" title="Nakshatra K. Milestone 2" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 For my second milestone, I focused on making the biometric heart-rate monitor more compact and organized. I replaced the original LCD with an I2C LCD, which reduced the number of wires needed and made the circuit much simpler. I also removed the breadboard and reorganized the wiring inside the project.
 
