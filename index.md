@@ -9,7 +9,7 @@ This project involves the creation of a system that can monitor and display biom
   
 # Final Milestone
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/F7M7imOVGug" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/vtGx4yYxCgU" title="Nakshatra K. Milestone 3" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 For my final milestone, I completed the enclosure for my biometric heart rate monitor. My original plan was to use a wooden box, but I did not have the tools needed to cut wood safely and accurately. Instead, I used a paper-mache box with a wood-like appearance. I created openings for the I2C LCD, USB port, barrel jack, and pulse sensor, then secured the Arduino and wiring inside. This made the project cleaner, more portable, and more complete.
 
