@@ -5,8 +5,6 @@ This project involves the creation of a system that can monitor and display biom
 |:--:|:--:|:--:|:--:|
 | Nakshatra K | Harry Ainlay | Aeronautical Engineering | Incoming Senior
 
-**Replace the BlueStamp logo below with an image of yourself and your completed project. Follow the guide [here](https://tomcam.github.io/least-github-pages/adding-images-github-pages-site.html) if you need help.**
-
 ![Headstone Image](<img width="860" height="747" alt="Screenshot 2026-08-06 092253" src="https://github.com/user-attachments/assets/5ce0d06f-3f42-4a70-b825-3b9c80668172" />)
   
 # Final Milestone
