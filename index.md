@@ -11,15 +11,13 @@ This project involves the creation of a system that can monitor and display biom
   
 # Final Milestone
 
-**Don't forget to replace the text below with the embedding for your milestone video. Go to Youtube, click Share -> Embed, and copy and paste the code to replace what's below.**
-
 <iframe width="560" height="315" src="https://www.youtube.com/embed/F7M7imOVGug" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
 
-For your final milestone, explain the outcome of your project. Key details to include are:
-- What you've accomplished since your previous milestone
-- What your biggest challenges and triumphs were at BSE
-- A summary of key topics you learned about
-- What you hope to learn in the future after everything you've learned at BSE
+Since my previous milestone, I completed the enclosure for my biometric heart rate monitor. My original plan was to use a wooden box, but I did not have the tools needed to cut wood safely and accurately. Instead, I used a paper-mache box with a wood-like appearance. I created openings for the I2C LCD, USB port, barrel jack, and pulse sensor, then secured the Arduino and wiring inside. This made the project cleaner, more portable, and more complete.
+
+Overall at BlueStamp Engineering, my biggest challenges were improving the accuracy of the heart rate readings, reducing random BPM values, adjusting the code and sensor settings, and organizing the wiring and components. I also changed from a regular LCD to an I2C LCD to simplify the wiring and improve the project’s design. My biggest triumph was completing the heart rate monitor and successfully placing all of the components inside the paper-mache enclosure. I was also proud of how the project improved through each milestone, from an early breadboard setup to a complete device inside an enclosure.
+
+Throughout BSE, I learned about Arduino programming, circuit wiring, pulse sensors, I2C LCD displays, testing and debugging code, organizing electronic components, and adapting a design when the original plan was not practical. In the future, I want to continue working on Arduino projects while experimenting with different ideas and components. I would also like to focus more on projects related to aeronautical engineering, since that is an area I am interested in pursuing.
 
 
 
