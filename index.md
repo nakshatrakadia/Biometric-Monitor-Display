@@ -5,7 +5,7 @@ This project involves the creation of a system that can monitor and display biom
 |:--:|:--:|:--:|:--:|
 | Nakshatra K | Harry Ainlay | Aeronautical Engineering | Incoming Senior
 
-![Headstone Image](<img width="860" height="747" alt="Screenshot 2026-08-06 092253" src="https://github.com/user-attachments/assets/5ce0d06f-3f42-4a70-b825-3b9c80668172" />)
+<img width="860" height="747" alt="Screenshot 2026-08-06 092253" src="https://github.com/user-attachments/assets/aba17615-c404-4f44-a326-0330533e6bd1" />
   
 # Final Milestone
 
