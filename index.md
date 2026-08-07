@@ -307,7 +307,7 @@ void updateDisplay(unsigned long now) {
 
 # Other Resources/Examples
 
-- [Schematic Maker](tinkercad.com)
+- [Schematic Maker](https://www.tinkercad.com/)
 - [Arduino IDE](https://www.arduino.cc/en/software/)
 - [Example Project](https://how2electronics.com/pulse-rate-bpm-monitor-arduino-pulse-sensor/)
 - [Code Maker](https://claude.ai/new)
